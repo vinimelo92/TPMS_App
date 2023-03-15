@@ -1,132 +1,130 @@
 import 'dart:async';
-import 'dart:convert' show utf8;
-import 'package:flutter/material.dart';
-import 'package:flutter_blue/flutter_blue.dart';
+import 'dart:convert' show json, utf8;
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:tpms_app/models/sensor.dart';
 
 class BluetoothManager {
-  
   // Device identification (ESP32)
   final String SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
   final String CHARACTERISTIC_UUID_TX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
   final String CHARACTERISTIC_UUID_RX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
-  final String TARGET_DEVICE_NAME = "ESP32-BLE";
+  final String TARGET_DEVICE_NAME = "ESP32";
 
-  FlutterBlue flutterBlue = FlutterBlue.instance;
-  StreamSubscription<ScanResult> scanSubScription;
+  FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
 
   // Variables for bluetooth
-  BluetoothDevice targetDevice;
-  BluetoothCharacteristic targetCharacteristicTX;
-  BluetoothCharacteristic targetCharacteristicRX;
+  late BluetoothDevice targetDevice;
+  late BluetoothCharacteristic targetCharacteristicTX;
+  late BluetoothCharacteristic targetCharacteristicRX;
 
   // Variable for display info
-  String connectionText = "Device Disconnected";
-  String sCounterValue = "--";
+  String connectionText = "Dispositivo desconectado";
+  String receivedData = 'Empty Value';
+  Map<String, Sensor> sensors = {};
 
   bool bIsConnected = false;
-  bool bEnableRealTimeCounter = false;
-  int iStatePauseOrPlay = 0;
 
+  StreamController<bool> controller = StreamController<bool>();
+  late Stream stream;
 
-  startScan() {
-    setState(() {
-      connectionText = "Start Scanning";
-    });
+  BluetoothManager() {
+    stream = controller.stream;
+  }
 
-    scanSubScription = flutterBlue
-        .scan(
-      allowDuplicates: false,
-      scanMode: ScanMode.lowLatency,
-      timeout: const Duration(seconds: 12),
-    )
-        .listen((scanResult) {
-      if (scanResult.device.name == TARGET_DEVICE_NAME) {
-        stopScan();
-        setState(() {
-          connectionText = "Found Target Device";
-        });
+  startScan() async {
+    flutterBlue.stopScan();
+    flutterBlue.startScan(timeout: const Duration(seconds: 4));
 
-        targetDevice = scanResult.device;
-        connectToDevice();
+    flutterBlue.scanResults.listen((results) async {
+      for (ScanResult r in results) {
+        if (TARGET_DEVICE_NAME == r.device.name && TARGET_DEVICE_NAME != '') {
+          flutterBlue.stopScan();
+          connectionText = "Dispositivo encontrado";
+          refreshApp();
+
+          targetDevice = r.device;
+          await connectToDevice();
+        }
       }
-    }, onDone: () => stopScan());
+    });
   }
 
   stopScan() {
-    scanSubScription?.cancel();
-    scanSubScription = null;
+    flutterBlue.stopScan();
+    disconnectFromDevice();
+    sensors.clear();
+    refreshApp();
   }
 
   connectToDevice() async {
-    if (targetDevice == null) return;
-
-    setState(() {
-      connectionText = "Device Connecting";
-    });
+    connectionText = "Conectando no dispositivo";
+    refreshApp();
 
     await targetDevice.connect();
-    setState(() {
-      connectionText = "Device Connected";
-    });
+    connectionText = "Dispositivo conectado";
+    refreshApp();
     discoverServices();
   }
 
   disconnectFromDevice() {
-    if (targetDevice == null) return;
-
     targetDevice.disconnect();
-    targetDevice = null;
     bIsConnected = false;
-    bEnableRealTimeCounter = false;
-    setState(() {
-      connectionText = "Device Disconnected";
-    });
+    connectionText = "Dispositivo desconectado";
+    refreshApp();
   }
 
   discoverServices() async {
-    if (targetDevice == null) return;
-
     List<BluetoothService> services = await targetDevice.discoverServices();
-    services.forEach((service) {
+    for (var service in services) {
       // do something with service
       if (service.uuid.toString() == SERVICE_UUID) {
-        service.characteristics.forEach((characteristic) {
-          print(characteristic.uuid.toString());
+        for (var characteristic in service.characteristics) {
           if (characteristic.uuid.toString() == CHARACTERISTIC_UUID_TX) {
             targetCharacteristicTX = characteristic;
             bIsConnected = true;
-            setState(() {
-              connectionText = "Connected to ${targetDevice.name}";
-            });
+            connectionText = "Conectado em ${targetDevice.name}";
+            readData();
+            refreshApp();
           }
+
           if (characteristic.uuid.toString() == CHARACTERISTIC_UUID_RX) {
             targetCharacteristicRX = characteristic;
             targetCharacteristicRX.setNotifyValue(true);
             bIsConnected = true;
+            refreshApp();
           }
-        });
+        }
+
+        flutterBlue.stopScan();
       }
-    });
+    }
 
     services.clear();
   }
 
   sendData(String data) {
-    if (targetCharacteristicTX == null) return;
-
     List<int> bytes = utf8.encode(data);
     targetCharacteristicTX.write(bytes);
   }
 
-  readData(String data) {
+  readData() {
     if (bIsConnected) {
       targetCharacteristicRX.value.listen((event) {
-        if (bEnableRealTimeCounter) {
-          return utf8.decode(event);
+        receivedData = utf8.decode(event);
+        if (receivedData.isEmpty) {
+          return;
         }
+
+        Sensor sensor = Sensor.transformToModel(receivedData);
+        sensors[sensor.id] = sensor;
+        refreshApp();
       });
     }
   }
+
+  refreshApp() {
+    controller.add(true);
+  }
 }
 
-final BluetoothManager userService = new BluetoothManager();
+final BluetoothManager bluetoothManager = BluetoothManager();
