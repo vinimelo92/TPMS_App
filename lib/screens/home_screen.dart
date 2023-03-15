@@ -210,7 +210,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    '3.1V',
+                                    getSensorInformation('Sensor_1')?.battery  ?? '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -302,7 +302,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    '3.1V',
+                                    getSensorInformation('Sensor_3')?.battery  ?? '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -394,7 +394,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    '3.1V',
+                                    getSensorInformation('Sensor_5')?.battery  ?? '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -499,7 +499,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    '3.1V',
+                                    getSensorInformation('Sensor_2')?.battery  ?? '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -683,7 +683,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    '3.1V',
+                                    getSensorInformation('Sensor_6')?.battery  ?? '--',
                                     style: TextStyle(
                                         color: Colors.white, fontSize: 12),
                                   ),
