@@ -1,19 +1,26 @@
 // ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables, sized_box_for_whitespace
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../models/configuration.dart';
 import '../models/sensor.dart';
 import '../providers/bluetooth_manager.dart';
 import '../providers/mqtt_manager.dart';
+import 'configuration_screen.dart';
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
+class TruckScreen extends StatefulWidget {
+  const TruckScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<TruckScreen> createState() => _TruckScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _TruckScreenState extends State<TruckScreen> {
+  late StreamSubscription<bool> bluetoothSubscription;
+  late StreamSubscription<bool> mqttSubscription;
+
   Sensor? getSensorInformation(String id) {
     if (bluetoothManager.sensors.isNotEmpty) {
       return bluetoothManager.sensors[id];
@@ -33,9 +40,9 @@ class _MyHomePageState extends State<MyHomePage> {
       return Colors.grey[200];
     }
 
-    if ((sensor.temperatureValue > 60) ||
-        (sensor.pressureValue < 25) ||
-        (sensor.pressureValue > 50)) {
+    if ((sensor.temperatureValue >= configuration.maxTemperatureValue) ||
+        (sensor.pressureValue <= configuration.minPressureValue) ||
+        (sensor.pressureValue >= configuration.maxTemperatureValue)) {
       return Colors.red[600];
     }
 
@@ -44,12 +51,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void initState() {
-    bluetoothManager.bluetoothStream.listen((value) {
+    bluetoothSubscription = bluetoothManager.bluetoothStream.listen((value) {
       setState(() {});
     });
-    mqttManager.mqttStream.listen((value) {
+
+    mqttSubscription = mqttManager.mqttStream.listen((value) {
       setState(() {});
     });
+
     super.initState();
   }
 
@@ -62,30 +71,51 @@ class _MyHomePageState extends State<MyHomePage> {
           centerTitle: true,
         ),
         drawer: Drawer(
-          width: 190,
+          width: 200,
           child: ListView(
             children: [
+              UserAccountsDrawerHeader(
+                accountName: Text(
+                  "TCC TPMS V1",
+                  style: TextStyle(color: Colors.black),
+                ),
+                accountEmail: Text(
+                  configuration.vehicleType,
+                  style: TextStyle(color: Colors.black),
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.blue[200],
+                ),
+              ),
               ListTile(
                 leading: Icon(Icons.home),
                 title: const Text('Tela principal'),
+                onTap: () {
+                  Navigator.of(context).pushReplacement(MaterialPageRoute(
+                      settings: const RouteSettings(
+                          name: '/motorcycle_screen'),
+                      builder: (context) => TruckScreen()));
+                },
               ),
               Divider(),
               ListTile(
                 leading: Icon(Icons.settings),
                 title: const Text('Configurações'),
+                onTap: () {
+                  bluetoothSubscription.cancel();
+                  mqttSubscription.cancel();
+                  Navigator.of(context).pushReplacement(MaterialPageRoute(
+                      settings: const RouteSettings(
+                          name: '/car_screen/configuration_screen'),
+                      builder: (context) => ConfigurationPage()));
+                },
               ),
               Divider(),
               ListTile(
                 leading: Icon(Icons.help),
                 title: const Text('Suporte'),
               ),
-              Divider(
-                color: Colors.transparent,
-                height: 25.0,
-              ),
-              ListTile(
-                title: const Text('TPMS v1'),
-              ),
+              Divider(),
             ],
           ),
         ),

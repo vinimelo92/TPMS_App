@@ -1,8 +1,8 @@
 class Sensor {
   final String id;
-  final String pressureValue;
-  final String temperatureValue;
-  final String battery;
+  final double pressureValue;
+  final double temperatureValue;
+  final double battery;
 
   Sensor({
     required this.id,
@@ -16,9 +16,9 @@ class Sensor {
 
     return Sensor(
         id: 'sensor_${convertedData[0]}',
-        pressureValue: '${convertedData[1]} PSI',
-        temperatureValue: '${convertedData[2]} °C',
-        battery: '${convertedData[3]} V',
+        pressureValue: double.parse(convertedData[1]),
+        temperatureValue: double.parse(convertedData[2]),
+        battery: double.parse(convertedData[3]),
     );
   }
 }

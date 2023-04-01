@@ -1,6 +1,12 @@
 // ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables, sized_box_for_whitespace
 
 import 'package:flutter/material.dart';
+import 'package:tpms_app/models/configuration.dart';
+import 'package:tpms_app/screens/motorcycle_screen.dart';
+import 'package:tpms_app/screens/car_screen.dart';
+import 'package:tpms_app/screens/truck_screen.dart';
+
+// import 'home_screen.dart';
 
 class ConfigurationPage extends StatefulWidget {
   const ConfigurationPage({super.key});
@@ -12,12 +18,30 @@ class ConfigurationPage extends StatefulWidget {
 class _ConfigurationPageState extends State<ConfigurationPage> {
   String _vehicleType = '';
   double _minPressureValue = 20;
-  double _maxPressureValue = 20;
-  double _minTemperatureValue = 20;
-  double _maxTemperatureValue = 20;
+  double _maxPressureValue = 55;
+  double _maxTemperatureValue = 60;
+
 
   @override
   Widget build(BuildContext context) {
+    void openSelectedScreen(){
+      if (configuration.vehicleType == 'Motorcycle'){
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+            settings: const RouteSettings(name: '/motorcycle_screen'),
+            builder: (context) => MotorCycleScreen()));
+        }
+        else if (configuration.vehicleType == 'Car'){
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+            settings: const RouteSettings(name: '/car_screen'),
+            builder: (context) => CarScreen()));
+        }
+        else if (configuration.vehicleType == 'Truck'){
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+            settings: const RouteSettings(name: '/truck_screen'),
+            builder: (context) => TruckScreen()));
+        }
+    }
+
     return Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.blue[200],
@@ -25,30 +49,35 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
           centerTitle: true,
         ),
         drawer: Drawer(
-          width: 190,
+          width: 200,
           child: ListView(
             children: [
+              UserAccountsDrawerHeader(
+                accountName: Text(
+                  "TCC TPMS V1",
+                  style: TextStyle(color: Colors.black),
+                ),
+                accountEmail: Text(
+                  configuration.vehicleType,
+                  style: TextStyle(color: Colors.black),
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.blue[200],
+                ),
+              ),
               ListTile(
                 leading: Icon(Icons.home),
                 title: const Text('Tela principal'),
-              ),
-              Divider(),
-              ListTile(
-                leading: Icon(Icons.settings),
-                title: const Text('Configurações'),
+                onTap: () => {
+                  openSelectedScreen()
+                },
               ),
               Divider(),
               ListTile(
                 leading: Icon(Icons.help),
                 title: const Text('Suporte'),
               ),
-              Divider(
-                color: Colors.transparent,
-                height: 25.0,
-              ),
-              ListTile(
-                title: const Text('TPMS v1'),
-              ),
+              Divider(),
             ],
           ),
         ),
@@ -203,8 +232,8 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
                   Text('Max'),
                   Slider(
                     value: _maxPressureValue,
-                    max: 40,
-                    min: 20,
+                    max: 120,
+                    min: 50,
                     divisions: 10,
                     thumbColor: Colors.blue[200],
                     activeColor: Colors.blue[200],
@@ -249,8 +278,8 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
                   Text('Max'),
                   Slider(
                     value: _maxTemperatureValue,
-                    max: 40,
-                    min: 20,
+                    max: 120,
+                    min: 50,
                     divisions: 10,
                     thumbColor: Colors.blue[200],
                     activeColor: Colors.blue[200],
@@ -263,24 +292,26 @@ class _ConfigurationPageState extends State<ConfigurationPage> {
                   Text('$_maxTemperatureValue°C')
                 ],
               ),
+              Divider(),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Min'),
-                  Slider(
-                    value: _minTemperatureValue,
-                    max: 40,
-                    min: 20,
-                    divisions: 10,
-                    thumbColor: Colors.blue[200],
-                    activeColor: Colors.blue[200],
-                    onChanged: (double value) {
-                      setState(() {
-                        _minTemperatureValue = value;
-                      });
+                  TextButton(
+                    style: ButtonStyle(
+                      backgroundColor:
+                          MaterialStatePropertyAll<Color>(Colors.amber),
+                    ),
+                    onPressed: () {
+                      configuration.setVehicleType(_vehicleType);
+                      configuration.setMaxPressureValue(_minPressureValue);
+                      configuration.setMinPressureValue(_minPressureValue);
+                      configuration
+                          .setMaxTemperatureValue(_maxTemperatureValue);
+
+                      openSelectedScreen();
                     },
+                    child: Text('Salvar Configurações'),
                   ),
-                  Text('$_minTemperatureValue°C')
                 ],
               ),
             ],

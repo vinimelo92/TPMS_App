@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-
-import 'screens/home_screen.dart';
-// import 'pages/home_screen.dart';
+import 'package:tpms_app/screens/configuration_screen.dart';
+// import 'screens/home_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -19,7 +18,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
         useMaterial3: true,
       ),
-      home: const MyHomePage(),
+      home: const ConfigurationPage(),
       debugShowCheckedModeBanner: false,
     );
   }

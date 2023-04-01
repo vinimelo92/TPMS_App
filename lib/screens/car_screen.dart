@@ -1,19 +1,26 @@
 // ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables, sized_box_for_whitespace
 
-import 'package:flutter/material.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:tpms_app/screens/configuration_screen.dart';
+
+import '../models/configuration.dart';
 import '../models/sensor.dart';
 import '../providers/bluetooth_manager.dart';
 import '../providers/mqtt_manager.dart';
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
+class CarScreen extends StatefulWidget {
+  const CarScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<CarScreen> createState() => _CarScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _CarScreenState extends State<CarScreen> {
+  late StreamSubscription<bool> bluetoothSubscription;
+  late StreamSubscription<bool> mqttSubscription;
+
   Sensor? getSensorInformation(String id) {
     if (bluetoothManager.sensors.isNotEmpty) {
       return bluetoothManager.sensors[id];
@@ -33,9 +40,9 @@ class _MyHomePageState extends State<MyHomePage> {
       return Colors.grey[200];
     }
 
-    if ((sensor.temperatureValue > 60) ||
-        (sensor.pressureValue < 25) ||
-        (sensor.pressureValue > 50)) {
+    if ((sensor.temperatureValue >= configuration.maxTemperatureValue) ||
+        (sensor.pressureValue <= configuration.minPressureValue) ||
+        (sensor.pressureValue >= configuration.maxTemperatureValue)) {
       return Colors.red[600];
     }
 
@@ -44,10 +51,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void initState() {
-    bluetoothManager.bluetoothStream.listen((value) {
+    bluetoothSubscription = bluetoothManager.bluetoothStream.listen((value) {
       setState(() {});
     });
-    mqttManager.mqttStream.listen((value) {
+
+    mqttSubscription = mqttManager.mqttStream.listen((value) {
       setState(() {});
     });
     super.initState();
@@ -62,30 +70,51 @@ class _MyHomePageState extends State<MyHomePage> {
           centerTitle: true,
         ),
         drawer: Drawer(
-          width: 190,
+          width: 200,
           child: ListView(
             children: [
+              UserAccountsDrawerHeader(
+                accountName: Text(
+                  "TCC TPMS V1",
+                  style: TextStyle(color: Colors.black),
+                ),
+                accountEmail: Text(
+                  configuration.vehicleType,
+                  style: TextStyle(color: Colors.black),
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.blue[200],
+                ),
+              ),
               ListTile(
                 leading: Icon(Icons.home),
                 title: const Text('Tela principal'),
+                onTap: () => {
+                  Navigator.of(context).pushReplacement(MaterialPageRoute(
+                      settings: const RouteSettings(
+                          name: '/car_screen'),
+                      builder: (context) => CarScreen()))
+                },
               ),
               Divider(),
               ListTile(
                 leading: Icon(Icons.settings),
                 title: const Text('Configurações'),
+                onTap: () {
+                  bluetoothSubscription.cancel();
+                  mqttSubscription.cancel();
+                  Navigator.of(context).pushReplacement(MaterialPageRoute(
+                      settings: const RouteSettings(
+                          name: '/car_screen/configuration_screen'),
+                      builder: (context) => ConfigurationPage()));
+                },
               ),
               Divider(),
               ListTile(
                 leading: Icon(Icons.help),
                 title: const Text('Suporte'),
               ),
-              Divider(
-                color: Colors.transparent,
-                height: 25.0,
-              ),
-              ListTile(
-                title: const Text('TPMS v1'),
-              ),
+              Divider(),
             ],
           ),
         ),
@@ -94,7 +123,7 @@ class _MyHomePageState extends State<MyHomePage> {
             children: <Widget>[
               Container(
                 width: 500,
-                height: 600,
+                height: 650,
                 child: Column(
                   children: [
                     Text('Utilize os botoes para iniciar',
@@ -172,7 +201,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
               Positioned(
-                  top: 190,
+                  top: 220,
                   left: 5,
                   width: 100,
                   height: 120,
@@ -276,7 +305,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         )),
                   )),
               Positioned(
-                  top: 350,
+                  top: 390,
                   left: 5,
                   width: 100,
                   height: 120,
@@ -379,117 +408,13 @@ class _MyHomePageState extends State<MyHomePage> {
                           ],
                         )),
                   )),
-              Positioned(
-                  top: 480,
-                  left: 5,
-                  width: 100,
-                  height: 120,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: getContainerColor('sensor_5'),
-                      border: Border.all(width: 1, color: Colors.black),
-                      borderRadius: BorderRadius.all(Radius.circular(10)),
-                    ),
-                    child: Container(
-                        height: 100,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: <Widget>[
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(5.0),
-                                  child: Text(
-                                    getSensorInformation('sensor_5')?.id ??
-                                        'Sem disp.',
-                                    style: TextStyle(
-                                      color: Colors.black,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                )
-                              ],
-                            ),
-                            Divider(
-                              height: 5,
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.tire_repair,
-                                  color: Colors.black,
-                                  size: 17,
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(5.0),
-                                  child: Text(
-                                    getSensorInformation('sensor_5')
-                                                ?.pressureValue !=
-                                            null
-                                        ? '${getSensorInformation('sensor_5')?.pressureValue} PSI'
-                                        : '--',
-                                    style: TextStyle(
-                                        color: Colors.black, fontSize: 12),
-                                  ),
-                                )
-                              ],
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.device_thermostat,
-                                  color: Colors.black,
-                                  size: 17,
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(5.0),
-                                  child: Text(
-                                    getSensorInformation('sensor_5')
-                                                ?.temperatureValue !=
-                                            null
-                                        ? '${getSensorInformation('sensor_5')?.temperatureValue} °C'
-                                        : '--',
-                                    style: TextStyle(
-                                        color: Colors.black, fontSize: 12),
-                                  ),
-                                )
-                              ],
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.battery_full,
-                                  color: Colors.green,
-                                  size: 17,
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(5.0),
-                                  child: Text(
-                                    getSensorInformation('sensor_5')?.battery !=
-                                            null
-                                        ? '${getSensorInformation('sensor_5')?.battery} V'
-                                        : '--',
-                                    style: TextStyle(
-                                        color: Colors.black, fontSize: 12),
-                                  ),
-                                )
-                              ],
-                            ),
-                          ],
-                        )),
-                  )),
               Positioned.fill(
-                top: 180,
+                top: 80,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
                     Image.asset(
-                      'images/truck.png',
+                      'images/car_template.png',
                       height: 300,
                       width: 500,
                     ),
@@ -497,8 +422,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
               Positioned(
-                  top: 190,
-                  left: 250,
+                  top: 220,
+                  left: 255,
                   width: 100,
                   height: 120,
                   child: Container(
@@ -601,8 +526,8 @@ class _MyHomePageState extends State<MyHomePage> {
                         )),
                   )),
               Positioned(
-                  top: 350,
-                  left: 250,
+                  top: 390,
+                  left: 255,
                   width: 100,
                   height: 120,
                   child: Container(
@@ -705,13 +630,13 @@ class _MyHomePageState extends State<MyHomePage> {
                         )),
                   )),
               Positioned(
-                  top: 480,
-                  left: 250,
+                  top: 525,
+                  left: 130,
                   width: 100,
                   height: 120,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: getContainerColor('sensor_6'),
+                      color: getContainerColor('sensor_5'),
                       border: Border.all(width: 1, color: Colors.black),
                       borderRadius: BorderRadius.all(Radius.circular(10)),
                     ),
@@ -726,10 +651,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('sensor_6')?.id ??
+                                    getSensorInformation('sensor_5')?.id ??
                                         'Sem Disp.',
                                     style: TextStyle(
-                                      color: Colors.white,
+                                      color: Colors.black,
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -751,13 +676,13 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('sensor_6')
+                                    getSensorInformation('sensor_5')
                                                 ?.pressureValue !=
                                             null
-                                        ? '${getSensorInformation('sensor_6')?.pressureValue} PSI'
+                                        ? '${getSensorInformation('sensor_5')?.pressureValue} PSI'
                                         : '--',
                                     style: TextStyle(
-                                        color: Colors.white, fontSize: 12),
+                                        color: Colors.black, fontSize: 12),
                                   ),
                                 )
                               ],
@@ -773,13 +698,13 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('sensor_6')
+                                    getSensorInformation('sensor_5')
                                                 ?.temperatureValue !=
                                             null
-                                        ? '${getSensorInformation('sensor_6')?.temperatureValue} °C'
+                                        ? '${getSensorInformation('sensor_5')?.temperatureValue} °C'
                                         : '--',
                                     style: TextStyle(
-                                        color: Colors.white, fontSize: 12),
+                                        color: Colors.black, fontSize: 12),
                                   ),
                                 )
                               ],
@@ -795,12 +720,12 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('sensor_6')?.battery !=
+                                    getSensorInformation('sensor_5')?.battery !=
                                             null
-                                        ? '${getSensorInformation('sensor_6')?.battery} V'
+                                        ? '${getSensorInformation('sensor_5')?.battery} V'
                                         : '--',
                                     style: TextStyle(
-                                        color: Colors.white, fontSize: 12),
+                                        color: Colors.black, fontSize: 12),
                                   ),
                                 )
                               ],
