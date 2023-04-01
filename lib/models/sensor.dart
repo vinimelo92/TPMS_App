@@ -15,7 +15,7 @@ class Sensor {
     var convertedData = data.split(",");
 
     return Sensor(
-        id: 'Sensor_${convertedData[0]}',
+        id: 'sensor_${convertedData[0]}',
         pressureValue: '${convertedData[1]} PSI',
         temperatureValue: '${convertedData[2]} °C',
         battery: '${convertedData[3]} V',

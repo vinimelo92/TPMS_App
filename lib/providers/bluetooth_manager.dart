@@ -18,17 +18,17 @@ class BluetoothManager {
   late BluetoothCharacteristic targetCharacteristicRX;
 
   // Variable for display info
-  String connectionText = "Dispositivo desconectado";
+  String connectionText = "Desconectado";
   String receivedData = 'Empty Value';
   Map<String, Sensor> sensors = {};
 
   bool bIsConnected = false;
 
   StreamController<bool> controller = StreamController<bool>();
-  late Stream stream;
+  late Stream bluetoothStream;
 
   BluetoothManager() {
-    stream = controller.stream;
+    bluetoothStream = controller.stream;
   }
 
   startScan() async {
@@ -40,7 +40,7 @@ class BluetoothManager {
         if (TARGET_DEVICE_NAME == r.device.name && TARGET_DEVICE_NAME != '') {
           flutterBlue.stopScan();
           connectionText = "Dispositivo encontrado";
-          refreshApp();
+          notifyBluetoothDataChange();
 
           targetDevice = r.device;
           await connectToDevice();
@@ -53,24 +53,24 @@ class BluetoothManager {
     flutterBlue.stopScan();
     disconnectFromDevice();
     sensors.clear();
-    refreshApp();
+    notifyBluetoothDataChange();
   }
 
   connectToDevice() async {
-    connectionText = "Conectando no dispositivo";
-    refreshApp();
+    connectionText = "Conectando...";
+    notifyBluetoothDataChange();
 
     await targetDevice.connect();
-    connectionText = "Dispositivo conectado";
-    refreshApp();
+    connectionText = "Conectado";
+    notifyBluetoothDataChange();
     discoverServices();
   }
 
   disconnectFromDevice() {
     targetDevice.disconnect();
     bIsConnected = false;
-    connectionText = "Dispositivo desconectado";
-    refreshApp();
+    connectionText = "Desconectado";
+    notifyBluetoothDataChange();
   }
 
   discoverServices() async {
@@ -84,14 +84,14 @@ class BluetoothManager {
             bIsConnected = true;
             connectionText = "Conectado em ${targetDevice.name}";
             readData();
-            refreshApp();
+            notifyBluetoothDataChange();
           }
 
           if (characteristic.uuid.toString() == CHARACTERISTIC_UUID_RX) {
             targetCharacteristicRX = characteristic;
             targetCharacteristicRX.setNotifyValue(true);
             bIsConnected = true;
-            refreshApp();
+            notifyBluetoothDataChange();
           }
         }
 
@@ -117,12 +117,12 @@ class BluetoothManager {
 
         Sensor sensor = Sensor.transformToModel(receivedData);
         sensors[sensor.id] = sensor;
-        refreshApp();
+        notifyBluetoothDataChange();
       });
     }
   }
 
-  refreshApp() {
+  notifyBluetoothDataChange() {
     controller.add(true);
   }
 }

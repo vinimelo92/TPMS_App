@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/sensor.dart';
 import '../providers/bluetooth_manager.dart';
+import '../providers/mqtt_manager.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
@@ -14,17 +15,23 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   Sensor? getSensorInformation(String id) {
-
-    if (bluetoothManager.sensors.isEmpty){
-      return null;
+    if (bluetoothManager.sensors.isNotEmpty) {
+      return bluetoothManager.sensors[id];
     }
 
-    return bluetoothManager.sensors[id];
+    if (mqttManager.sensors.isNotEmpty) {
+      return mqttManager.sensors[id];
+    }
+
+    return null;
   }
 
   @override
   void initState() {
-    bluetoothManager.stream.listen((value) {
+    bluetoothManager.bluetoothStream.listen((value) {
+      setState(() {});
+    });
+    mqttManager.mqttStream.listen((value) {
       setState(() {});
     });
     super.initState();
@@ -70,61 +77,83 @@ class _MyHomePageState extends State<MyHomePage> {
           child: Stack(
             children: <Widget>[
               Container(
+                width: 500,
                 height: 600,
                 child: Column(
                   children: [
+                    Text(
+                        'Utilize os botoes para iniciar',
+                        style: TextStyle(
+                            fontSize: 18.0, fontWeight: FontWeight.bold)),
+                        
                     Card(
-                        color: Colors.white,
+                        elevation: 10.0,
                         child: SizedBox(
-                          // width: 300,
-                          height: 70,
+                          height: 65,
+                          width: 200,
                           child: ListTile(
-                              subtitle: Text(
-                                'Pressione o botao abaixo para conectar',
-                                textAlign: TextAlign.center,
-                              ),
-                              title: Text(
-                                'Conexão com Bluetooth',
+                            leading: Icon(
+                              (bluetoothManager.connectionText) ==
+                                          "Conectado" ||
+                                      (bluetoothManager.bIsConnected)
+                                  ? Icons.bluetooth_connected
+                                  : Icons.bluetooth_disabled,
+                              color: (bluetoothManager.connectionText) ==
+                                          "Conectado" ||
+                                      (bluetoothManager.bIsConnected)
+                                  ? Colors.blue
+                                  : Colors.grey,
+                              size: 24.0,
+                            ),
+                            title: Text('BLE Status:',
                                 style: TextStyle(
-                                    fontSize: 20.0,
-                                    fontWeight: FontWeight.bold),
-                                textAlign: TextAlign.center,
-                              )),
+                                    fontSize: 15.0,
+                                    fontWeight: FontWeight.bold)),
+                            subtitle: Text(bluetoothManager.connectionText),
+                            onLongPress: () async {
+                              if (bluetoothManager.bIsConnected) {
+                                bluetoothManager.stopScan();
+                                setState(() {});
+                              } else {
+                                await bluetoothManager.startScan();
+                                setState(() {});
+                              }
+                            },
+                          ),
                         )),
                     Card(
-                      elevation: 10.0,
+                        elevation: 10.0,
                         child: SizedBox(
-                      height: 65,
-                      width: 280,
-                      child: ListTile(
-                        leading: Icon(
-                          (bluetoothManager.connectionText) ==
-                                      "Dispositivo Conectado" ||
-                                  (bluetoothManager.bIsConnected)
-                              ? Icons.bluetooth_connected
-                              : Icons.bluetooth_disabled,
-                          color: (bluetoothManager.connectionText) ==
-                                      "Dispositivo Conectado" ||
-                                  (bluetoothManager.bIsConnected)
-                              ? Colors.blue
-                              : Colors.grey,
-                          size: 36.0,
-                        ),
-                        title: Text('Bluetooth Status:',
-                            style: TextStyle(
-                                fontSize: 18.0, fontWeight: FontWeight.bold)),
-                        subtitle: Text(bluetoothManager.connectionText),
-                        onLongPress: () async {
-                          if (bluetoothManager.bIsConnected) {
-                            bluetoothManager.stopScan();
-                            setState(() {});
-                          } else {
-                            await bluetoothManager.startScan();
-                            setState(() {});
-                          }
-                        },
-                      ),
-                    )),
+                          height: 65,
+                          width: 200,
+                          child: ListTile(
+                            leading: Icon(
+                              (mqttManager.isMqttConnected())
+                                  ? Icons.wifi_outlined
+                                  : Icons.wifi_off,
+                              color: (mqttManager.isMqttConnected())
+                                  ? Colors.blue
+                                  : Colors.grey,
+                              size: 24.0,
+                            ),
+                            title: Text('IoT Status:',
+                                style: TextStyle(
+                                    fontSize: 15.0,
+                                    fontWeight: FontWeight.bold)),
+                            subtitle: Text(mqttManager.isMqttConnected()
+                                ? 'Conectado'
+                                : 'Desconectado'),
+                            onLongPress: () async {
+                              if (mqttManager.isMqttConnected()) {
+                                mqttManager.disconnect();
+                                setState(() {});
+                              } else {
+                                mqttManager.prepareMqttClient();
+                                setState(() {});
+                              }
+                            },
+                          ),
+                        )),
                   ],
                 ),
               ),
@@ -150,7 +179,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_1')?.id  ?? 'Sem disp.',
+                                    getSensorInformation('sensor_1')?.id ??
+                                        'Sem disp.',
                                     style: TextStyle(
                                       color: Colors.black,
                                       fontSize: 12,
@@ -174,7 +204,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_1')?.pressureValue  ?? '--',
+                                    getSensorInformation('sensor_1')
+                                            ?.pressureValue ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -192,7 +224,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_1')?.temperatureValue  ?? '--',
+                                    getSensorInformation('sensor_1')
+                                            ?.temperatureValue ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -210,7 +244,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_1')?.battery  ?? '--',
+                                    getSensorInformation('sensor_1')?.battery ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -242,7 +277,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_3')?.id  ?? 'Sem disp.',
+                                    getSensorInformation('sensor_3')?.id ??
+                                        'Sem disp.',
                                     style: TextStyle(
                                       color: Colors.black,
                                       fontSize: 12,
@@ -266,7 +302,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_3')?.pressureValue  ?? '--',
+                                    getSensorInformation('sensor_3')
+                                            ?.pressureValue ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -284,7 +322,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_3')?.temperatureValue  ?? '--',
+                                    getSensorInformation('sensor_3')
+                                            ?.temperatureValue ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -302,7 +342,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_3')?.battery  ?? '--',
+                                    getSensorInformation('sensor_3')?.battery ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -334,7 +375,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_5')?.id  ?? 'Sem disp.',
+                                    getSensorInformation('sensor_5')?.id ??
+                                        'Sem disp.',
                                     style: TextStyle(
                                       color: Colors.black,
                                       fontSize: 12,
@@ -358,7 +400,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_5')?.pressureValue  ?? '--',
+                                    getSensorInformation('sensor_5')
+                                            ?.pressureValue ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -376,7 +420,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_5')?.temperatureValue  ?? '--',
+                                    getSensorInformation('sensor_5')
+                                            ?.temperatureValue ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -394,7 +440,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_5')?.battery  ?? '--',
+                                    getSensorInformation('sensor_5')?.battery ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -439,7 +486,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_2')?.id  ?? '--',
+                                    getSensorInformation('sensor_2')?.id ??
+                                        'Sem Disp.',
                                     style: TextStyle(
                                       color: Colors.black,
                                       fontSize: 12,
@@ -463,7 +511,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_2')?.pressureValue  ?? '--',
+                                    getSensorInformation('sensor_2')
+                                            ?.pressureValue ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -481,7 +531,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_2')?.temperatureValue  ?? '--',
+                                    getSensorInformation('sensor_2')
+                                            ?.temperatureValue ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -499,7 +551,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_2')?.battery  ?? '--',
+                                    getSensorInformation('sensor_2')?.battery ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -531,7 +584,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_4')?.id  ?? 'Sem Disp.',
+                                    getSensorInformation('sensor_4')?.id ??
+                                        'Sem Disp.',
                                     style: TextStyle(
                                       color: Colors.black,
                                       fontSize: 12,
@@ -555,7 +609,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_4')?.pressureValue  ?? '--',
+                                    getSensorInformation('sensor_4')
+                                            ?.pressureValue ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -573,7 +629,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_4')?.temperatureValue  ?? '--',
+                                    getSensorInformation('sensor_4')
+                                            ?.temperatureValue ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -591,7 +649,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_4')?.battery  ?? '--',
+                                    getSensorInformation('sensor_4')?.battery ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.black, fontSize: 12),
                                   ),
@@ -623,7 +682,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_6')?.id  ?? 'Sem Disp.',
+                                    getSensorInformation('sensor_6')?.id ??
+                                        'Sem Disp.',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 12,
@@ -647,7 +707,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_6')?.pressureValue  ?? '--',
+                                    getSensorInformation('sensor_6')
+                                            ?.pressureValue ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.white, fontSize: 12),
                                   ),
@@ -665,7 +727,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_6')?.temperatureValue  ?? '--',
+                                    getSensorInformation('sensor_6')
+                                            ?.temperatureValue ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.white, fontSize: 12),
                                   ),
@@ -683,7 +747,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Padding(
                                   padding: const EdgeInsets.all(5.0),
                                   child: Text(
-                                    getSensorInformation('Sensor_6')?.battery  ?? '--',
+                                    getSensorInformation('sensor_6')?.battery ??
+                                        '--',
                                     style: TextStyle(
                                         color: Colors.white, fontSize: 12),
                                   ),
